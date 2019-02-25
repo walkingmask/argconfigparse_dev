@@ -1,0 +1,14 @@
+{
+    "main": {
+        "main_config1": 1
+    },
+    "global": {
+        "global_config1": 2
+    },
+    "ex_subcommand1": {
+        "ex1_config1": 3
+    },
+    "ex_subcommand2": {
+        "ex2_config1": 4
+    }
+}
