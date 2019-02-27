@@ -174,6 +174,9 @@ class CLIParser:
     def __init__(self):
         self.subcommands = []
 
+    def get_subcommands(self):
+        self.subcommands += get_subcommands()
+
     def register(self, subcommand):
         self.subcommands.append(subcommand)
 
