@@ -13,9 +13,10 @@ command.__init__.py:
     set_config(parser)
     set_global_config(parser)
 subcommand.__init__.py
-    is_command = True
+    is_subcommand = True
     set_args(parser)
     set_config(parser)
+    check_config(config)
 """
 
 
@@ -29,6 +30,12 @@ def get_subcommands():
         if hasattr(package, 'is_subcommand'):
             subcommands.append(package)
     return subcommands
+
+
+def get_subcommand(subcommand_name, subcommands):
+    for subcommand in subcommands:
+        if subcommand.__name__.split('.')[-1] == subcommand_name:
+            return subcommand
 
 
 def set_args(command, parser):
@@ -45,6 +52,11 @@ def get_config(command):
     parser = argparse.ArgumentParser()
     set_config(command, parser)
     return parser.parse_args()
+
+
+def check_config(command, config):
+    if hasattr(command, 'check_config'):
+        command.check_config(config)
 
 
 def set_global_config(command, parser):
@@ -65,7 +77,8 @@ def get_subcommand_parser(parser, subcommand_name):
 
 
 def load_config(file_path, section):
-    with open(file_path) as f:
+    config_file = Path(file_path).absolute()
+    with config_file.open() as f:
         config_all = json.load(f)
     config = {}
     if 'main' in config_all:
@@ -77,12 +90,8 @@ def load_config(file_path, section):
     return config
 
 
-def override_argument_default(parser, arg, default):
-    arg = vars(deepcopy(arg))
-    arg['default'] = default
-    option_strings = arg['option_strings']
-    del arg['option_strings'], arg['container']
-    parser.add_argument(*option_strings, **arg)
+def override_argument_default(arg, default):
+    arg.default = default
 
 
 def set_file_config_as_default(parser, file_config, subcommand_name=None):
@@ -90,7 +99,7 @@ def set_file_config_as_default(parser, file_config, subcommand_name=None):
         if arg.dest in ['help', 'config']: continue
         if arg.dest in file_config:
             new_default = file_config[arg.dest]
-            override_argument_default(parser, arg, new_default)
+            override_argument_default(arg, new_default)
 
     if subcommand_name:
         subcommand_parser = get_subcommand_parser(parser, subcommand_name)
@@ -98,7 +107,7 @@ def set_file_config_as_default(parser, file_config, subcommand_name=None):
             if arg.dest == 'help': continue
             if arg.dest in file_config:
                 new_default = file_config[arg.dest]
-                override_argument_default(subcommand_parser, arg, new_default)
+                override_argument_default(arg, new_default)
 
 
 def get_args(parser, cli_args, subcommand_name=None):
@@ -118,7 +127,7 @@ def get_args(parser, cli_args, subcommand_name=None):
     return SimpleNamespace(**args), SimpleNamespace(**subcommand_args)
 
 
-def build_parser():
+def build_parser(subcommands):
     parser = argparse.ArgumentParser(conflict_handler='resolve')
     parser.add_argument('-c', '--config')
     command = import_module(__name__.split('.')[0])
@@ -126,7 +135,7 @@ def build_parser():
     set_config(command, parser)
     subcommand_parsers = parser.add_subparsers(dest='subcommand')
     subcommand_parsers.required = True
-    for subcommand in get_subcommands():
+    for subcommand in subcommands:
         subcommand_parser = subcommand_parsers.add_parser(
             subcommand.__name__.split('.')[-1], conflict_handler='resolve')
         set_args(subcommand, subcommand_parser)
@@ -136,7 +145,8 @@ def build_parser():
 
 
 def cli_parse():
-    parser = build_parser()
+    subcommands = get_subcommands()
+    parser = build_parser(subcommands)
     cli_args = parser.parse_args()
     subcommand_name, config_file = cli_args.subcommand, cli_args.config
 
@@ -149,5 +159,8 @@ def cli_parse():
 
     del cli_args.subcommand, cli_args.config
     config = cli_args
+
+    subcommand = get_subcommand(subcommand_name, subcommands)
+    check_config(subcommand, config)
 
     return args, subcommand_name, subcommand_args, config, config_file
