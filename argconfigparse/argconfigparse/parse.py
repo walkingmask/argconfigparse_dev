@@ -146,6 +146,10 @@ def build_parser(subcommands):
 
 def cli_parse():
     subcommands = get_subcommands()
+    return _cli_parse(subcommands)
+
+
+def _cli_parse(subcommands):
     parser = build_parser(subcommands)
     cli_args = parser.parse_args()
     subcommand_name, config_file = cli_args.subcommand, cli_args.config
@@ -164,3 +168,14 @@ def cli_parse():
     check_config(subcommand, config)
 
     return args, subcommand_name, subcommand_args, config, config_file
+
+
+class CLIParser:
+    def __init__(self):
+        self.subcommands = []
+
+    def register(self, subcommand):
+        self.subcommands.append(subcommand)
+
+    def parse(self):
+        return _cli_parse(self.subcommands)
