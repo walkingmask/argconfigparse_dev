@@ -182,3 +182,25 @@ class CLIParser:
 
     def parse(self):
         return _cli_parse(self.subcommands)
+
+
+def config_parse(subcommand_name, config_path=None):
+    parser = argparse.ArgumentParser(conflict_handler='resolve')
+    command = import_module(__name__.split('.')[0])
+    set_config(command, parser)
+
+    subcommand_parsers = parser.add_subparsers(dest='subcommand')
+    subcommand_parsers.required = True
+    subcommand_parser = subcommand_parsers.add_parser(
+        subcommand_name, conflict_handler='resolve')
+
+    subcommands = get_subcommands()
+    subcommand = get_subcommand(subcommand_name, subcommands)
+    set_config(subcommand, subcommand_parser)
+    set_global_config(command, subcommand_parser)
+
+    if config_path:
+        file_config = load_config(config_path, subcommand_name)
+        set_file_config_as_default(parser, file_config, subcommand_name)
+
+    return parser.parse_args([subcommand_name])
